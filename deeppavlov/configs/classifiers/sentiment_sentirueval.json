@@ -3,7 +3,7 @@
     "name": "basic_classification_reader",
     "x": "text",
     "y": "label",
-    "data_path": "/home/dilyara/data/data_files/SentiRuEval/all_data",
+    "data_path": "SentiRuEval_data/all_data",
     "train": "train.csv",
     "valid": "valid.csv",
     "test": "test.csv"
