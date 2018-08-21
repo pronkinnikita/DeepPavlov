@@ -179,7 +179,8 @@ class NerNetwork(TFModel):
             emb = token_ph
         else:
             token_ph = tf.placeholder(tf.int32, [None, None], name='Token_Ind_ph')
-            emb = embedding_layer(token_ph, token_emb_mat)
+            with tf.variable_scope('Word_Emb_Layer'): 
+                emb = embedding_layer(token_ph, token_emb_mat, trainable = False)
         self._xs_ph_list.append(token_ph)
         self._input_features.append(emb)
 
@@ -269,7 +270,7 @@ class NerNetwork(TFModel):
 
         # optimizer = partial(tf.train.MomentumOptimizer, momentum=0.9, use_nesterov=True)
         optimizer = tf.train.AdamOptimizer
-        train_op = self.get_train_op(loss, self.learning_rate_ph, optimizer, clip_norm=clip_grad_norm)
+        train_op = self.get_train_op(loss, self.learning_rate_ph, optimizer, clip_norm = clip_grad_norm)
         return train_op, loss
 
     def predict_no_crf(self, xs):
@@ -340,3 +341,58 @@ class NerNetwork(TFModel):
                                                                                self._learning_rate * self._lr_drop_value))
                 self.load()
                 self._learning_rate *= self._lr_drop_value
+                
+    def load(self, *args, **kwargs):
+        super().load(exclude_scopes = ['Word_Emb_Layer', 'Optimizer'])
+
+    def save(self, *args, **kwargs):
+        super().save(exclude_scopes = ['Word_Emb_Layer', 'Optimizer'])
+        
+    def get_train_op(self,
+                     loss,
+                     learning_rate,
+                     optimizer=None,
+                     clip_norm=None,
+                     learnable_scopes=None,
+                     optimizer_scope_name=None):
+        """ Get train operation for given loss
+
+        Args:
+            loss: loss, tf tensor or scalar
+            learning_rate: scalar or placeholder
+            clip_norm: clip gradients norm by clip_norm
+            learnable_scopes: which scopes are trainable (None for all)
+            optimizer: instance of tf.train.Optimizer, default Adam
+
+        Returns:
+            train_op
+        """
+        if optimizer_scope_name is None:
+            opt_scope = tf.variable_scope('Optimizer')
+        else:
+            opt_scope = tf.variable_scope(optimizer_scope_name)
+        with opt_scope:
+            if learnable_scopes is None:
+                variables_to_train = tf.global_variables()
+                exclude_scopes = ['Word_Emb_Layer']
+                variables_to_train = [var for var in variables_to_train if all(sc not in var.name for sc in exclude_scopes)]
+            else:
+                variables_to_train = []
+                for scope_name in learnable_scopes:
+                    for var in tf.global_variables():
+                        if scope_name in var.name:
+                            variables_to_train.append(var)
+
+            if optimizer is None:
+                optimizer = tf.train.AdamOptimizer
+
+            # For batch norm it is necessary to update running averages
+            extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(extra_update_ops):
+                opt = optimizer(learning_rate)
+                grads_and_vars = opt.compute_gradients(loss, var_list=variables_to_train)
+                if clip_norm is not None:
+                    grads_and_vars = [(tf.clip_by_norm(grad, clip_norm), var)
+                                      for grad, var in grads_and_vars] #  if grad is not None
+                train_op = opt.apply_gradients(grads_and_vars)
+        return train_op
