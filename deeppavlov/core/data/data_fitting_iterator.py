@@ -27,14 +27,14 @@ class DataFittingIterator:
     Data is passed as a list of strings(documents).
     Generate batches (for large datasets).
 
-     Args:
+    Args:
         data: list of documents
         doc_ids: provided document ids
         seed: random seed for data shuffling
-        shuffle: whether to shuffle data when batching
+        shuffle: whether to shuffle data during batching
 
     Attributes:
-        shuffle: whether to shuffle data when batching
+        shuffle: whether to shuffle data during batching
         random: instance of :class:`Random` initialized with a seed
         data: list of documents
         doc_ids: provided by a user ids or generated automatically ids
@@ -76,7 +76,7 @@ class DataFittingIterator:
 
         Args:
             batch_size: a number of samples in a single batch
-            shuffle: whether to shuffle data when batching
+            shuffle: whether to shuffle data during batching
 
         Yields:
             generated tuple of documents and their ids

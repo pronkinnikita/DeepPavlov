@@ -3,16 +3,12 @@
     "in": [
       "question_raw"
     ],
-    "in_y": [
-      "ans_raw",
-      "ans_raw_start"
-    ],
     "out": [
-      "ans_predicted"
+      "best_answer"
     ],
     "pipe": [
       {
-        "config_path": "../deeppavlov/configs/ranking/ru_ranker_tfidf_wiki.json",
+        "config_path": "../deeppavlov/configs/doc_retrieval/ru_ranker_tfidf_wiki.json",
         "in": [
           "question_raw"
         ],
@@ -28,26 +24,39 @@
         "out": [
           "context_raw"
         ],
-        "data_dir": "odqa",
+        "join_docs": false,
         "shuffle": false,
-        "data_url": "http://files.deeppavlov.ai/datasets/wikipedia/ruwiki.db"
+        "load_path": "odqa/ruwiki.db"
       },
       {
-        "config_path": "../deeppavlov/configs/squad/squad_ru.json",
+        "name": "document_chunker",
+        "in": ["context_raw"],
+        "out": ["chunks"],
+        "flatten_result": true
+      },
+      {
+        "name": "string_multiplier",
+        "in": ["question_raw", "chunks"],
+        "out":["questions"]
+      },
+      {
+        "name": "logit_ranker",
+        "squad_model": {
+          "config_path": "../deeppavlov/configs/squad/squad_ru.json"
+        },
         "in": [
-          "context_raw",
-          "question_raw"
+          "chunks",
+          "questions"
         ],
         "out": [
-          "ans_predicted",
-          "ans_start_predicted"
+          "best_answer"
         ]
       }
     ]
   },
   "metadata": {
     "requirements": [
-      "../dp_requirements/tf-gpu.txt"
+      "../dp_requirements/tf.txt"
     ],
     "labels": {
       "server_utils": "ODQA"

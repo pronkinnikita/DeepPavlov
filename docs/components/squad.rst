@@ -90,9 +90,61 @@ Pretrained model is available and can be downloaded:
 
     python -m deeppavlov download deeppavlov/configs/squad/squad.json
 
-It achieves ~80 F-1 score and ~71 EM on dev set. Results of the most
-recent solutions could be found on `SQuAD
+It achieves ~80 F-1 score and ~71 EM on `SQuAD-v1.1`_ dev set.
+
+In the following table you can find comparison with published results. Results of the most recent competitive solutions could be found on `SQuAD
 Leadearboad <https://rajpurkar.github.io/SQuAD-explorer/>`__.
+
++----------------------------------------------+----------------+-----------------+
+| Model (single model)                         |    EM (dev)    |    F-1 (dev)    |
++----------------------------------------------+----------------+-----------------+
+| :config:`DeepPavlov <squad/squad.json>`      |     71.49      |     80.34       |
++----------------------------------------------+----------------+-----------------+
+| `BiDAF + Self Attention + ELMo`_             |       --       |     85.6        |
++----------------------------------------------+----------------+-----------------+
+| `QANet`_                                     |     75.1       |     83.8        |
++----------------------------------------------+----------------+-----------------+
+| `FusionNet`_                                 |     75.3       |     83.6        |
++----------------------------------------------+----------------+-----------------+
+| `R-Net`_                                     |     71.1       |     79.5        |
++----------------------------------------------+----------------+-----------------+
+| `BiDAF`_                                     |     67.7       |     77.3        |
++----------------------------------------------+----------------+-----------------+
+
+.. _`SQuAD-v1.1`: https://arxiv.org/abs/1606.05250
+.. _`BiDAF`: https://arxiv.org/abs/1611.01603
+.. _`R-Net`: https://www.microsoft.com/en-us/research/publication/mrc/
+.. _`FusionNet`: https://arxiv.org/abs/1711.07341
+.. _`QANet`: https://arxiv.org/abs/1804.09541
+.. _`BiDAF + Self Attention + ELMo`: https://arxiv.org/abs/1802.05365
+
+SQuAD with contexts without correct answers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the case when answer is not necessary present in given context we have :config:`squad_noans <squad/multi_squad_noans.json>`
+config with pretrained model. This model outputs empty string in case if there is no answer in context.
+This model was trained not on SQuAD dataset. For each question-context pair from SQuAD we extracted contexts from the same
+Wikipedia article and ranked them according to tf-idf score between question and context. In this manner we built dataset
+with contexts without an answer.
+
+Special trainable `no_answer` token is added to output of self-attention layer and it makes model able to select
+`no_answer` token in cases, when answer is not present in given context.
+
+We got 57.88 EM and 65.91 F-1 on ground truth Wikipedia article (we used the same Wiki dump as `DrQA`_):
+
++---------------+-----------------------------------------------+----------------+-----------------+
+| Model config                                                  |    EM (dev)    |    F-1 (dev)    |
++---------------------------------------------------------------+----------------+-----------------+
+| :config:`DeepPavlov <squad/multi_squad_noans.json>`           |     57.88      |     65.91       |
++---------------------------------------------------------------+----------------+-----------------+
+| `Simple and Effective Multi-Paragraph Reading Comprehension`_ |     59.14      |     67.34       |
++---------------------------------------------------------------+----------------+-----------------+
+| `DrQA`_                                                       |     49.7       |     --          |
++---------------------------------------------------------------+----------------+-----------------+
+
+
+.. _`DrQA`: https://arxiv.org/abs/1704.00051
+.. _`Simple and Effective Multi-Paragraph Reading Comprehension`: https://arxiv.org/abs/1710.10723
 
 SDSJ Task B
 ~~~~~~~~~~~
@@ -103,4 +155,8 @@ Pretrained model is available and can be downloaded:
 
     python -m deeppavlov download deeppavlov/configs/squad/squad_ru.json
 
-It achieves ~80 F-1 score and ~60 EM on dev set.
++---------------+---------------------------------+----------------+-----------------+
+| Model config                                    |    EM (dev)    |    F-1 (dev)    |
++-------------------------------------------------+----------------+-----------------+
+| :config:`DeepPavlov <squad/squad_ru.json>`      |     60.62      |     80.04       |
++-------------------------------------------------+----------------+-----------------+

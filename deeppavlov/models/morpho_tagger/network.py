@@ -12,40 +12,81 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from typing import List, Union, Tuple, Iterable
 
 import keras.layers as kl
 import keras.optimizers as ko
 import keras.regularizers as kreg
 from keras import Model
 
+from deeppavlov.core.common.registry import register
 from deeppavlov.core.common.log import get_logger
+from deeppavlov.core.models.keras_model import KerasWrapper
 from deeppavlov.core.data.vocab import DefaultVocabulary
 from .common_tagger import *
 from .cells import Highway
 
-
 log = get_logger(__name__)
+
 MAX_WORD_LENGTH = 30
 
-
 class CharacterTagger:
+
+    """A class for character-based neural morphological tagger
+
+    Parameters:
+        symbols: character vocabulary
+        tags: morphological tags vocabulary
+        word_rnn: the type of character-level network (only `cnn` implemented)
+        char_embeddings_size: the size of character embeddings
+        char_conv_layers: the number of convolutional layers on character level
+        char_window_size: the width of convolutional filter (filters).
+            It can be a list if several parallel filters are applied, for example, [2, 3, 4, 5].
+        char_filters: the number of convolutional filters for each window width.
+            It can be a number, a list (when there are several windows of different width
+            on a single convolution layer), a list of lists, if there
+            are more than 1 convolution layers, or **None**.
+            If **None**, a layer with width **width** contains
+            min(**char_filter_multiple** * **width**, 200) filters.
+
+        char_filter_multiple: the ratio between filters number and window width
+        char_highway_layers: the number of highway layers on character level
+        conv_dropout: the ratio of dropout between convolutional layers
+        highway_dropout: the ratio of dropout between highway layers,
+        intermediate_dropout: the ratio of dropout between convolutional
+            and highway layers on character level
+        lstm_dropout: dropout ratio in word-level LSTM
+        word_vectorizers: list of parameters for additional word-level vectorizers,
+            for each vectorizer it stores a pair of vectorizer dimension and
+            the dimension of the corresponding word embedding
+        word_lstm_layers: the number of word-level LSTM layers
+        word_lstm_units: hidden dimensions of word-level LSTMs
+        word_dropout: the ratio of dropout before word level (it is applied to word embeddings)
+        regularizer: l2 regularization parameter
+        verbose: the level of verbosity
     """
-    A class for character-based neural morphological tagger
-    """
-    def __init__(self, symbols: DefaultVocabulary, tags: DefaultVocabulary,
-                 reverse=False, word_rnn="cnn",
-                 char_embeddings_size=16, char_conv_layers=1,
-                 char_window_size=5, char_filters=None,
-                 char_filter_multiple=25, char_highway_layers=1,
-                 conv_dropout=0.0, highway_dropout=0.0,
-                 intermediate_dropout=0.0, lstm_dropout=0.0,
-                 word_vectorizers=None,
-                 word_lstm_layers=1, word_lstm_units=128,
-                 word_dropout=0.0, regularizer=None, verbose=1):
+    def __init__(self,
+                 symbols: DefaultVocabulary,
+                 tags: DefaultVocabulary,
+                 word_rnn: str = "cnn",
+                 char_embeddings_size: int = 16,
+                 char_conv_layers: int = 1,
+                 char_window_size: Union[int, List[int]] = 5,
+                 char_filters: Union[int, List[int]] = None,
+                 char_filter_multiple: int = 25,
+                 char_highway_layers: int = 1,
+                 conv_dropout: float = 0.0,
+                 highway_dropout: float = 0.0,
+                 intermediate_dropout: float = 0.0,
+                 lstm_dropout: float = 0.0,
+                 word_vectorizers: List[Tuple[int, int]] = None,
+                 word_lstm_layers: int = 1,
+                 word_lstm_units: Union[int, List[int]] = 128,
+                 word_dropout: float = 0.0,
+                 regularizer: float = None,
+                 verbose: int = 1):
         self.symbols = symbols
         self.tags = tags
-        self.reverse = reverse
         self.word_rnn = word_rnn
         self.char_embeddings_size = char_embeddings_size
         self.char_conv_layers = char_conv_layers
@@ -63,11 +104,10 @@ class CharacterTagger:
         self.word_lstm_units = word_lstm_units
         self.regularizer = regularizer
         self.verbose = verbose
-        self.initialize()
-        log.info("{} symbols, {} tags in CharacterTagger".format(self.symbols_number_, self.tags_number_))
+        self._initialize()
         self.build()
 
-    def initialize(self):
+    def _initialize(self):
         if isinstance(self.char_window_size, int):
             self.char_window_size = [self.char_window_size]
         if self.char_filters is None or isinstance(self.char_filters, int):
@@ -82,19 +122,27 @@ class CharacterTagger:
             self.word_vectorizers = []
         if self.regularizer is not None:
             self.regularizer = kreg.l2(self.regularizer)
+        if self.verbose > 0:
+            log.info("{} symbols, {} tags in CharacterTagger".format(self.symbols_number_, self.tags_number_))
 
     @property
-    def symbols_number_(self):
+    def symbols_number_(self) -> int:
+        """Character vocabulary size
+        """
         return len(self.symbols)
 
     @property
-    def tags_number_(self):
+    def tags_number_(self) -> int:
+        """Tag vocabulary size
+        """
         return len(self.tags)
 
     def build(self):
+        """Builds the network using Keras.
+        """
         word_inputs = kl.Input(shape=(None, MAX_WORD_LENGTH+2), dtype="int32")
         inputs = [word_inputs]
-        word_outputs = self.build_word_cnn(word_inputs)
+        word_outputs = self._build_word_cnn(word_inputs)
         if len(self.word_vectorizers) > 0:
             additional_word_inputs = [kl.Input(shape=(None, input_dim), dtype="float32")
                                       for input_dim, dense_dim in self.word_vectorizers]
@@ -102,7 +150,7 @@ class CharacterTagger:
             additional_word_embeddings = [kl.Dense(dense_dim)(additional_word_inputs[i])
                                           for i, (_, dense_dim) in enumerate(self.word_vectorizers)]
             word_outputs = kl.Concatenate()([word_outputs] + additional_word_embeddings)
-        outputs, lstm_outputs = self.build_basic_network(word_outputs)
+        outputs, lstm_outputs = self._build_basic_network(word_outputs)
         compile_args = {"optimizer": ko.nadam(lr=0.002, clipnorm=5.0),
                         "loss": "categorical_crossentropy", "metrics": ["accuracy"]}
         self.model_ = Model(inputs, outputs)
@@ -111,8 +159,9 @@ class CharacterTagger:
             self.model_.summary(print_fn=log.info)
         return self
 
-    def build_word_cnn(self, inputs):
-        # inputs = kl.Input(shape=(MAX_WORD_LENGTH,), dtype="int32")
+    def _build_word_cnn(self, inputs):
+        """Builds word-level network
+        """
         inputs = kl.Lambda(kb.one_hot, arguments={"num_classes": self.symbols_number_},
                            output_shape=lambda x: tuple(x) + (self.symbols_number_,))(inputs)
         char_embeddings = kl.Dense(self.char_embeddings_size, use_bias=False)(inputs)
@@ -147,7 +196,7 @@ class CharacterTagger:
         highway_output = Highway(activation="relu")(highway_input)
         return highway_output
 
-    def build_basic_network(self, word_outputs):
+    def _build_basic_network(self, word_outputs):
         """
         Creates the basic network architecture,
         transforming word embeddings to intermediate outputs
@@ -182,24 +231,29 @@ class CharacterTagger:
         else:
             return X
 
-    def train_on_batch(self, data, labels):
-        """
-        Trains model on a single batch
+    def train_on_batch(self, data: List[Iterable], labels: Iterable[list]) -> None:
+        """Trains model on a single batch
 
-        data: a batch of word sequences
-        labels: a batch of correct tag sequences
+        Args:
+            data: a batch of word sequences
+            labels: a batch of correct tag sequences
+        Returns:
+            the trained model
         """
         X, Y = self._transform_batch(data, labels)
-        # TO_DO: add weights to deal with padded instances
-        return self.model_.train_on_batch(X, Y)
+        self.model_.train_on_batch(X, Y)
 
-    def predict_on_batch(self, data: [list, tuple], return_indexes=False):
+    def predict_on_batch(self, data: Union[list, tuple],
+                         return_indexes: bool = False) -> List[List[str]]:
         """
         Makes predictions on a single batch
 
-        data: a batch of word sequences,
-        -----------------------------------------
-        answer: a batch of label sequences
+        Args:
+            data: a batch of word sequences together with additional inputs
+            return_indexes: whether to return tag indexes in vocabulary or tags themselves
+
+        Returns:
+            a batch of label sequences
         """
         X = self._transform_batch(data)
         objects_number, lengths = len(X[0]), [len(elem) for elem in data[0]]
@@ -211,7 +265,17 @@ class CharacterTagger:
             answer[i] = elem if return_indexes else self.tags.idxs2toks(elem)
         return answer
 
-    def _make_sent_vector(self, sent, bucket_length=None):
+    def _make_sent_vector(self, sent: List, bucket_length: int =None) -> np.ndarray:
+        """Transforms a sentence to Numpy array, which will be the network input.
+
+        Args:
+            sent: input sentence
+            bucket_length: the width of the bucket
+
+        Returns:
+            A 3d array, answer[i][j][k] contains the index of k-th letter
+            in j-th word of i-th input sentence.
+        """
         bucket_length = bucket_length or len(sent)
         answer = np.zeros(shape=(bucket_length, MAX_WORD_LENGTH+2), dtype=np.int32)
         for i, word in enumerate(sent):
@@ -223,18 +287,45 @@ class CharacterTagger:
             answer[i, m+2:] = self.tags.tok2idx("PAD")
         return answer
 
-    def _make_tags_vector(self, tags, bucket_length=None):
+    def _make_tags_vector(self, tags, bucket_length=None) -> np.ndarray:
+        """Transforms a sentence of tags to Numpy array, which will be the network target.
+
+        Args:
+            tags: input sentence of tags
+            bucket_length: the width of the bucket
+
+        Returns:
+            A 2d array, answer[i][j] contains the index of j-th tag in i-th input sentence.
+        """
         bucket_length = bucket_length or len(tags)
         answer = np.zeros(shape=(bucket_length,), dtype=np.int32)
         for i, tag in enumerate(tags):
             answer[i] = self.tags.tok2idx(tag)
         return answer
 
-    def save(self, outfile):
-        """
-        outfile: file with model weights (other model components should be given in config)
+    def save(self, outfile) -> None:
+        """Saves model weights to a file
+
+        Args:
+            outfile: file with model weights (other model components should be given in config)
         """
         self.model_.save_weights(outfile)
 
-    def load(self, infile):
+    def load(self, infile) -> None:
+        """Loads model weights from a file
+
+        Args:
+            infile: file to load model weights from
+        """
         self.model_.load_weights(infile)
+
+
+@register("morpho_tagger")
+class MorphoTagger(KerasWrapper):
+    """
+    A wrapper over :class:`CharacterTagger`.
+    It is inherited from :class:`~deeppavlov.core.keras_model.KerasWrapper`.
+    It accepts initialization parameters of :class:`CharacterTagger`
+    """
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(CharacterTagger, *args, **kwargs)

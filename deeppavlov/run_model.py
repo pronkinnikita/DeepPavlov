@@ -13,14 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from deeppavlov.deep import find_config
-from deeppavlov.core.commands.train import train_evaluate_model_from_config
 from deeppavlov.core.commands.infer import interact_model
+from deeppavlov.core.commands.train import train_evaluate_model_from_config
+from deeppavlov.deep import find_config
 
-
-# PIPELINE_CONFIG_PATH = 'configs/intents/intents_dstc2.json'
-# PIPELINE_CONFIG_PATH = 'configs/intents/intents_snips.json'
+# PIPELINE_CONFIG_PATH = 'configs/classifiers/intents_dstc2.json'
+# PIPELINE_CONFIG_PATH = 'configs/classifiers/intents_snips.json'
 # PIPELINE_CONFIG_PATH = 'configs/ner/ner_dstc2.json'
 # PIPELINE_CONFIG_PATH = 'configs/ner/ner_rus.json'
 # PIPELINE_CONFIG_PATH = 'configs/ner/slotfill_dstc2.json'
@@ -39,9 +37,13 @@ from deeppavlov.core.commands.infer import interact_model
 # PIPELINE_CONFIG_PATH = 'configs/odqa/ru_odqa_infer_prod.json'
 # PIPELINE_CONFIG_PATH = 'configs/odqa/ranker_test.json'
 # PIPELINE_CONFIG_PATH = find_config('morpho_ru_syntagrus_train')
-PIPELINE_CONFIG_PATH = find_config('morpho_ru_syntagrus_train_pymorphy')
+# PIPELINE_CONFIG_PATH = find_config('morpho_ru_syntagrus_train_pymorphy')
+# PIPELINE_CONFIG_PATH = find_config('intents_dstc2_big')
+
+PIPELINE_CONFIG_PATH = find_config('ecommerce_bot')
 
 
 if __name__ == '__main__':
-    train_evaluate_model_from_config(PIPELINE_CONFIG_PATH)
-    # interact_model(PIPELINE_CONFIG_PATH)
+    # train_evaluate_model_from_config(PIPELINE_CONFIG_PATH)
+    # start_model_server(PIPELINE_CONFIG_PATH)
+    interact_model(PIPELINE_CONFIG_PATH)

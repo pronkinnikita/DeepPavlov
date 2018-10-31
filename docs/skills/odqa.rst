@@ -46,7 +46,7 @@ Training
 
 **ODQA ranker** and **ODQA reader** should be trained separately.
 Read about training the **ranker** :ref:`here <ranker_training>`.
-Read about training the **reader** in our separate :doc:`reader tutorial </apiref/models/go_bot>`.
+Read about training the **reader** in our separate :doc:`reader tutorial </apiref/models/squad>`.
 
 Interacting
 -----------
@@ -80,12 +80,17 @@ Comparison
 
 Scores for **ODQA** skill:
 
-+-------------------------------------------------+------------------------------------------------------------------+-----------------------+------------+
-| Skill                                           | Config                                                           | Ranker Recall (top 5) | Reader f1  |
-+=================================================+==================================================================+=======================+============+
-| **ODQA English**                                | :config:`en_odqa_infer_wiki.json <odqa/en_odqa_infer_wiki.json>` | 0.756                 | 0.257      |
-+-------------------------------------------------+------------------------------------------------------------------+-----------------------+------------+
 
++-----------------------+-----------------------------+----------------+-----------------------+--------+------+
+| Model                                               | Dataset        |  Wiki dump            |  F1    |  EM  |
++-----------------------------------------------------+----------------+-----------------------+--------+------+
+|:config:`DeepPavlov <odqa/en_odqa_infer_wiki.json>`  | SQuAD (dev)    |   enwiki (2018-02-11) |  28.0  | 22.2 |
++-----------------------------------------------------+----------------+-----------------------+--------+------+
+|`DrQA`_                                              | SQuAD (dev)    |   enwiki (2016-12-21) |   \-   | 27.1 |
++-----------------------------------------------------+----------------+-----------------------+--------+------+
+
+
+EM stands for "exact-match accuracy". Metrics are counted for top 5 documents returned by retrieval module.
 
 References
 ==========

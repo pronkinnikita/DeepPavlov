@@ -34,51 +34,57 @@
     "pipe": [
       {
         "id": "classes_vocab",
-        "name": "default_vocab",
+        "name": "simple_vocab",
         "fit_on": [
           "y"
         ],
-        "level": "token",
-        "save_path": "vocabs/snips_classes.dict",
-        "load_path": "vocabs/snips_classes.dict"
+        "save_path": "classifiers/intents_snips_evolution/classes.dict",
+        "load_path": "classifiers/intents_snips_evolution/classes.dict",
+        "in": "y",
+        "out": "y_ids"
       },
       {
-        "in": [
-          "x"
-        ],
-        "out": [
-          "x_lower"
-        ],
+        "in": "x",
+        "out": "x_lower",
         "name": "str_lower"
       },
       {
-        "id": "my_embedder",
-        "name": "fasttext",
-        "save_path": "embeddings/dstc2_fastText_model.bin",
-        "load_path": "embeddings/dstc2_fastText_model.bin",
-        "dim": 100
-      },
-      {
+        "in": "x_lower",
+        "out": "x_tok",
         "id": "my_tokenizer",
         "name": "nltk_tokenizer",
         "tokenizer": "wordpunct_tokenize"
       },
       {
+        "in": "x_tok",
+        "out": "x_emb",
+        "id": "my_embedder",
+        "name": "fasttext",
+        "load_path": "embeddings/wiki.en.bin"
+      },
+      {
+        "in": "y_ids",
+        "out": "y_onehot",
+        "name": "one_hotter",
+        "id": "my_one_hotter",
+        "depth": "#classes_vocab.len"
+      },
+      {
         "in": [
-          "x_lower"
+          "x_emb"
         ],
         "in_y": [
-          "y"
+          "y_onehot"
         ],
         "out": [
-          "y_labels",
-          "y_probas_dict"
+          "y_pred_probas"
         ],
         "main": true,
-        "name": "intent_model",
-        "save_path": "evolution/classification/intents_snips",
-        "load_path": "evolution/classification/intents_snips",
-        "classes": "#classes_vocab.keys()",
+        "name": "keras_classification_model",
+        "save_path": "classifiers/intents_snips_evolution/intents_snips",
+        "load_path": "classifiers/intents_snips_evolution/intents_snips",
+        "embedding_size": "#my_embedder.dim",
+        "n_classes": "#classes_vocab.len",
         "kernel_sizes_cnn": [
           1,
           2,
@@ -91,29 +97,22 @@
           ],
           "discrete": true
         },
-        "confident_threshold": {
-          "evolve_choice": true,
-          "values": [
-            0.5,
-            1
-          ]
-        },
         "optimizer": "Adam",
-        "lear_rate": {
+        "learning_rate": {
           "evolve_range": [
             0.0001,
             0.1
           ],
           "scale": "log"
         },
-        "lear_rate_decay": {
+        "learning_rate_decay": {
           "evolve_range": [
             0.0001,
             0.1
           ],
           "scale": "log"
         },
-        "loss": "binary_crossentropy",
+        "loss": "categorical_crossentropy",
         "text_size": 15,
         "coef_reg_cnn": {
           "evolve_range": [
@@ -141,16 +140,24 @@
           "discrete": true
         },
         "model_name": "cnn_model",
-        "embedder": "#my_embedder",
-        "tokenizer": "#my_tokenizer",
         "check_bool": {
           "evolve_bool": true
         }
+      },
+      {
+        "in": "y_pred_probas",
+        "out": "y_pred_ids",
+        "name": "proba2labels",
+        "max_proba": true
+      },
+      {
+        "in": "y_pred_ids",
+        "out": "y_pred_labels",
+        "ref": "classes_vocab"
       }
     ],
     "out": [
-      "y_labels",
-      "y_probas_dict"
+      "y_pred_labels"
     ]
   },
   "train": {
@@ -169,9 +176,15 @@
       "discrete": true
     },
     "metrics": [
-      "classification_accuracy",
-      "classification_f1",
-      "classification_roc_auc"
+      "sets_accuracy",
+      "f1_macro",
+      {
+        "name": "roc_auc",
+        "inputs": [
+          "y_onehot",
+          "y_pred_probas"
+        ]
+      }
     ],
     "validation_patience": 5,
     "val_every_n_epochs": 1,
@@ -185,14 +198,12 @@
       "server_utils": "KerasIntentModel"
     },
     "download": [
-      "http://files.deeppavlov.ai/deeppavlov_data/intents.tar.gz",
-      "http://files.deeppavlov.ai/deeppavlov_data/vocabs.tar.gz",
       {
         "url": "http://files.deeppavlov.ai/datasets/snips_intents/train.csv",
         "subdir": "snips"
       },
       {
-        "url": "http://files.deeppavlov.ai/deeppavlov_data/embeddings/dstc2_fastText_model.bin",
+        "url": "http://files.deeppavlov.ai/deeppavlov_data/embeddings/wiki.en.bin",
         "subdir": "embeddings"
       }
     ]

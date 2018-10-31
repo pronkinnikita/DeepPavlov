@@ -383,12 +383,12 @@ prediction:
 
     import json
     from deeppavlov.core.commands.infer import build_model_from_config
-    from deeppavlov.core.commands.train import train_model_from_config
+    from deeppavlov.core.commands.train import train_evaluate_model_from_config
 
     PIPELINE_CONFIG_PATH = 'deeppavlov/configs/ner/ner_ontonotes.json'
     with open(PIPELINE_CONFIG_PATH) as f:
         config = json.load(f)
-    train_model_from_config(PIPELINE_CONFIG_PATH)
+    train_evaluate_model_from_config(PIPELINE_CONFIG_PATH)
     ner_model = build_model_from_config(config)
     ner_model(['Computer Sciences Corp. is close to making final an agreement to buy Cleveland Consulting Associates'])
 
@@ -403,12 +403,12 @@ A pre-trained model for solving OntoNotes task can be used as following:
 
     import json
     from deeppavlov.core.commands.infer import build_model_from_config
-    from deeppavlov.core.commands.train import train_model_from_config
+    from deeppavlov.core.commands.train import train_evaluate_model_from_config
 
     PIPELINE_CONFIG_PATH = 'deeppavlov/configs/ner/ner_ontonotes.json'
     with open(PIPELINE_CONFIG_PATH) as f:
         config = json.load(f)
-    train_model_from_config(PIPELINE_CONFIG_PATH)
+    train_evaluate_model_from_config(PIPELINE_CONFIG_PATH)
     ner_model = build_model_from_config(config)
     ner_model(['Computer Sciences Corp. is close to making final an agreement to buy Cleveland Consulting Associates'])
 
@@ -500,25 +500,23 @@ Bi-LSTM architecture of NER network was tested on three datasets:
 The F1 measure for our model along with the results of other published
 solutions are provided in the table below:
 
-+-------------------------+--------------------+----------------+-------------------+
-| Models                  | Gareev’s dataset   | Persons-1000   | FactRuEval 2016   |
-+=========================+====================+================+===================+
-| Gareev et al. [5]       | 75.05              |                |                   |
-+-------------------------+--------------------+----------------+-------------------+
-| Malykh et al. [8]       | 62.49              |                |                   |
-+-------------------------+--------------------+----------------+-------------------+
-| Trofimov [13]           |                    | 95.57          |                   |
-+-------------------------+--------------------+----------------+-------------------+
-| Rubaylo et al. [9]      |                    |                | 78.13             |
-+-------------------------+--------------------+----------------+-------------------+
-| Sysoev et al. [10]      |                    |                | 74.67             |
-+-------------------------+--------------------+----------------+-------------------+
-| Ivanitsky et al. [11]   |                    |                | **87.88**         |
-+-------------------------+--------------------+----------------+-------------------+
-| Mozharova et al. [12]   |                    | 97.21          |                   |
-+-------------------------+--------------------+----------------+-------------------+
-| Our (Bi-LSTM+CRF)       | **87.17**          | **99.26**      | 82.10             |
-+-------------------------+--------------------+----------------+-------------------+
++-------------------------------------------------------+--------------------+----------------+-------------------+
+| Models                                                | Gareev’s dataset   | Persons-1000   | FactRuEval 2016   |
++=======================================================+====================+================+===================+
+| Gareev et al.  [5]   (Linguistic features + CRF)      | 75.05              |                |                   |
++-------------------------------------------------------+--------------------+----------------+-------------------+
+| Malykh et al. [8] (Character level CNN)               | 62.49              |                |                   |
++-------------------------------------------------------+--------------------+----------------+-------------------+
+| Trofimov [13] (regex and dictionaries)                |                    | 95.57          |                   |
++-------------------------------------------------------+--------------------+----------------+-------------------+
+| Sysoev et al. [10] (dictionaries and embeddings + SVM)|                    |                | 74.67             |
++-------------------------------------------------------+--------------------+----------------+-------------------+
+| Ivanitsky et al. [11] (SVM + embeddings)              |                    |                | **87.88**         |
++-------------------------------------------------------+--------------------+----------------+-------------------+
+| Mozharova et al.  [12] (two stage CRF)                |                    | 97.21          |                   |
++-------------------------------------------------------+--------------------+----------------+-------------------+
+| Our (Bi-LSTM+CRF)                                     | **87.17**          | **99.26**      | 82.10             |
++-------------------------------------------------------+--------------------+----------------+-------------------+
 
 To run Russian NER model use the following code:
 

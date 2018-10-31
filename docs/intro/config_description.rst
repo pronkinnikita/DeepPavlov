@@ -75,7 +75,7 @@ unsupervised settings). This process takes multiple epochs with periodic validat
 :meth:`~deeppavlov.core.models.nn_model.NNModel.train_on_batch` method has to be implemented for each
 :class:`~deeppavlov.core.models.nn_model.NNModel`.
 
-Training is triggered by :func:`~deeppavlov.core.commands.train.train_model_from_config` function.
+Training is triggered by :func:`~deeppavlov.core.commands.train.train_evaluate_model_from_config` function.
 
 
 Train config
@@ -101,8 +101,8 @@ parameter which contains a list of ground truth answer names. For example:
         "in_y": ["y"],
         "out": ["y_predicted"],
         "name": "intent_model",
-        "save_path": "intents/intent_cnn",
-        "load_path": "intents/intent_cnn",
+        "save_path": "classifiers/intent_cnn",
+        "load_path": "classifiers/intent_cnn",
         "classes_vocab": {
           "ref": "classes_vocab"
         }
@@ -118,14 +118,14 @@ and ``train``:
       "dataset_reader": {
         "name": ...,
         ...
-      }
+      },
       "dataset_iterator": {
         "name": ...,
         ...
       },
       "chainer": {
         ...
-      }
+      },
       "train": {
         ...
       }
@@ -135,8 +135,8 @@ and ``train``:
 Simplified version of training pipeline contains two elements: ``dataset`` and ``train``. The ``dataset`` element
 currently can be used for train from classification data in ``csv`` and ``json`` formats. You can find complete examples
 of how to use simplified training pipeline in
-:config:`intents_sample_csv.json <intents/intents_sample_csv.json>` and
-:config:`intents_sample_json.json <intents/intents_sample_json.json>` config files.
+:config:`intents_sample_csv.json <classifiers/intents_sample_csv.json>` and
+:config:`intents_sample_json.json <classifiers/intents_sample_json.json>` config files.
 
 
 Train Parameters
@@ -144,8 +144,6 @@ Train Parameters
 
 -  ``epochs`` — maximum number of epochs to train NNModel, defaults to   ``-1`` (infinite)
 -  ``batch_size``,
--  ``metrics`` — list of names of registered :mod:`~deeppavlov.metrics` to evaluate the model. The first metric in
-   the list is used for early stopping
 -  ``metric_optimization`` — ``maximize`` or ``minimize`` a metric, defaults to ``maximize``
 -  ``validation_patience`` — how many times in a row the validation metric has to not improve for early stopping,
    defaults to ``5``
@@ -155,6 +153,37 @@ Train Parameters
 -  ``validate_best``, ``test_best`` flags to infer the best saved model on valid and test data, defaults to ``true``
 -  ``tensorboard_log_dir`` — path to write logged metrics during training. Use tensorboard to visualize metrics
    plots.
+-  ``metrics`` — list of :mod:`~deeppavlov.metrics` to evaluate the model.
+
+Metrics
+_______
+
+.. code:: python
+
+    "train": {
+      "metrics": [
+        "f1",
+        {
+          "name": "accuracy",
+          "inputs": ["y", "y_labels"]
+        },
+        {
+          "name": "roc_auc",
+          "inputs": ["y", "y_probabilities"]
+        }
+      ],
+      ...
+    }
+
+| The first metric in the list is used for early stopping.
+|
+| Each metric can be described as a JSON object with ``name`` and ``inputs`` properties, where ``name``
+  is a registered name of a metric function and ``inputs`` is a list of parameter names from chainer's
+  inner memory that will be passed to the metric function.
+|
+| If a metric is described as a single string, this string is interpreted as a registered name.
+|
+| Default value for ``inputs`` parameter is a concatenation of chainer's ``in_y`` and ``out`` parameters.
 
 
 DatasetReader

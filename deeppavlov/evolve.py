@@ -19,12 +19,9 @@ from pathlib import Path
 import sys
 import os
 import json
-from copy import deepcopy
-from subprocess import Popen, PIPE
-import pandas as pd
+from subprocess import Popen
 
-p = (Path(__file__) / ".." / "..").resolve()
-sys.path.append(str(p))
+import pandas as pd
 
 from deeppavlov.core.common.errors import ConfigError
 from deeppavlov.models.evolution.evolution_param_generator import ParamsEvolution
@@ -93,9 +90,9 @@ def main():
         else:
             try:
                 gpus = [cvd[gpu] for gpu in gpus]
-            except:
+            except IndexError:
                 raise ConfigError("Can not use gpus `{}` with CUDA_VISIBLE_DEVICES='{}'".format(
-                    ",".join(gpus), ",".join(cvd)
+                    ",".join(map(str, gpus)), ",".join(map(str, cvd))
                 ))
 
     basic_params = read_json(pipeline_config_path)
@@ -114,6 +111,7 @@ def main():
     considered_metrics = evolution.get_value_from_config(evolution.basic_config,
                                                          list(evolution.find_model_path(
                                                              evolution.basic_config, "metrics"))[0] + ["metrics"])
+    considered_metrics = [metric['name'] if isinstance(metric, dict) else metric for metric in considered_metrics]
 
     log.info(considered_metrics)
     evolve_metric = considered_metrics[0]
@@ -232,27 +230,24 @@ def run_population(population, evolution, gpus):
                 f_name = save_path.joinpath("config.json")
                 save_json(population[i], f_name)
 
-                if len(gpus) == 1 and gpus[0] == -1:
-                    procs.append(Popen("{} -m deeppavlov train {}"
-                                       " 1>{}/out.txt 2>{}/err.txt".format(sys.executable,
-                                                                           str(f_name),
-                                                                           str(save_path),
-                                                                           str(save_path)
-                                                                           ),
-                                       shell=True, stdout=PIPE, stderr=PIPE))
-                else:
-                    procs.append(Popen("CUDA_VISIBLE_DEVICES={} {} -m deeppavlov train {}"
-                                 " 1>{}/out.txt 2>{}/err.txt".format(gpus[j],
-                                                                     sys.executable,
-                                                                     str(f_name),
-                                                                     str(save_path),
-                                                                     str(save_path)
-                                                                     ),
-                                       shell=True, stdout=PIPE, stderr=PIPE))
+                with save_path.joinpath('out.txt').open('w', encoding='utf8') as outlog,\
+                        save_path.joinpath('err.txt').open('w', encoding='utf8') as errlog:
+                    env = dict(os.environ)
+                    if len(gpus) > 1 or gpus[0] != -1:
+                        env['CUDA_VISIBLE_DEVICES'] = str(gpus[j])
+
+                    procs.append(Popen("{} -m deeppavlov train {}".format(sys.executable, str(f_name)),
+                                       shell=True, stdout=outlog, stderr=errlog, env=env))
         for j, proc in enumerate(procs):
             i = k * len(gpus) + j
             log.info(f'Waiting on {i}th proc')
-            proc.wait()
+            if proc.wait() != 0:
+                save_path = expand_path(Path(evolution.get_value_from_config(
+                    population[i], evolution.main_model_path + ["save_path"])).parent)
+
+                with save_path.joinpath('err.txt').open(encoding='utf8') as errlog:
+                    log.warning(f'Population {i} returned an error code {proc.returncode} and an error log:\n' +
+                                errlog.read())
     return None
 
 
@@ -294,10 +289,22 @@ def results_to_table(population, evolution, considered_metrics, result_file, res
         if len(reports) == 2 and "valid" in reports[0].keys() and "test" in reports[1].keys():
             val_results = reports[0]["valid"]["metrics"]
             test_results = reports[1]["test"]["metrics"]
+        elif len(reports) == 2 and "valid" in reports[0].keys() and "valid" in reports[1].keys():
+            val_results = reports[1]["valid"]["metrics"]
+        elif len(reports) == 2 and "test" in reports[0].keys() and "test" in reports[1].keys():
+            val_results = reports[1]["test"]["metrics"]
+        elif len(reports) == 2 and "train" in reports[0].keys() and "valid" in reports[1].keys():
+            val_results = reports[1]["valid"]["metrics"]
+        elif len(reports) == 2 and "train" in reports[0].keys() and "test" in reports[1].keys():
+            val_results = reports[1]["test"]["metrics"]
+        elif len(reports) == 2 and "train" in reports[0].keys() and "train" in reports[1].keys():
+            val_results = reports[1]["train"]["metrics"]
         elif len(reports) == 1 and "valid" in reports[0].keys():
             val_results = reports[0]["valid"]["metrics"]
         elif len(reports) == 1 and "test" in reports[0].keys():
             test_results = reports[0]["test"]["metrics"]
+        else:
+            raise ConfigError("Can not proceed output files: didn't find valid and/or test results")
 
         result_table_dict = {}
         for el in result_table_columns:

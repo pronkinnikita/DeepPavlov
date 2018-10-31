@@ -78,6 +78,8 @@ class GoalOrientedBot(NNModel):
                  tracker: Tracker,
                  network_parameters: Dict[str, Any],
                  template_path: str,
+                 save_path: str,
+                 load_path: str = None,
                  template_type: str = "DefaultTemplate",
                  word_vocab: Component = None,
                  bow_embedder: Component = None,
@@ -88,8 +90,6 @@ class GoalOrientedBot(NNModel):
                  api_call_action: str = None,  # TODO: make it unrequired
                  use_action_mask: bool = False,
                  debug: bool = False,
-                 load_path: str = None,
-                 save_path: str = None,
                  **kwargs):
         super().__init__(load_path=load_path, save_path=save_path, **kwargs)
 
@@ -117,9 +117,11 @@ class GoalOrientedBot(NNModel):
 
         self.intents = []
         if callable(self.intent_classifier):
-            # intent_classifier returns (y_labels, y_probs)
-            self.intents = list(self.intent_classifier(["hi"])[1][0].keys())
+            # intent_classifier returns y_probas
+            self.intents = self.intent_classifier.get_main_component().classes
 
+        network_parameters['load_path'] = load_path
+        network_parameters['save_path'] = save_path
         self.network = self._init_network(network_parameters)
 
         self.reset()
@@ -166,7 +168,8 @@ class GoalOrientedBot(NNModel):
         # Bag of words features
         bow_features = []
         if callable(self.bow_embedder):
-            bow_features = self.bow_embedder([tokens], self.word_vocab)[0]
+            tokens_idx = self.word_vocab(tokens)
+            bow_features = self.bow_embedder([tokens_idx])[0]
             bow_features = bow_features.astype(np.float32)
 
         # Embeddings
@@ -197,9 +200,12 @@ class GoalOrientedBot(NNModel):
         # Intent features
         intent_features = []
         if callable(self.intent_classifier):
-            intent, intent_probs = self.intent_classifier([tokens])
-            intent_features = np.array([intent_probs[0][i] for i in self.intents],
-                                       dtype=np.float32)
+            # intent, intent_probs = self.intent_classifier([context])
+            # intent_features = np.array([intent_probs[0][i] for i in self.intents],
+            #                            dtype=np.float32)
+            intent_features = np.array(self.intent_classifier([context]))[0]
+            intent = [self.intents[np.argmax(intent_features[0])]]
+
             if self.debug:
                 log.debug("Predicted intent = `{}`".format(intent[0]))
 

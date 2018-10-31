@@ -14,8 +14,6 @@
 
 
 import numpy as np
-import sys
-import hashlib
 from typing import List
 
 from deeppavlov.core.common.log import get_logger
@@ -24,12 +22,12 @@ from deeppavlov.core.common.log import get_logger
 log = get_logger(__name__)
 
 
-def labels2onehot(labels: [list, np.ndarray], classes:  [list, np.ndarray]) -> np.ndarray:
+def labels2onehot(labels: [List[str], List[List[str]], np.ndarray], classes:  [list, np.ndarray]) -> np.ndarray:
     """
     Convert labels to one-hot vectors for multi-class multi-label classification
 
     Args:
-        labels: list of samples where each sample is a list of classes which sample belongs with
+        labels: list of samples where each sample is a class or a list of classes which sample belongs with
         classes: array of classes' names
 
     Returns:
@@ -39,17 +37,20 @@ def labels2onehot(labels: [list, np.ndarray], classes:  [list, np.ndarray]) -> n
     y = []
     for sample in labels:
         curr = np.zeros(n_classes)
-        for intent in sample:
-            if intent not in classes:
-                log.warning('Unknown intent {} detected. Assigning no class'.format(intent))
-            else:
-                curr[np.where(np.array(classes) == intent)[0]] = 1
+        if isinstance(sample, list):
+            for intent in sample:
+                if intent not in classes:
+                    log.warning('Unknown intent {} detected. Assigning no class'.format(intent))
+                else:
+                    curr[np.where(np.array(classes) == intent)[0]] = 1
+        else:
+            curr[np.where(np.array(classes) == sample)[0]] = 1
         y.append(curr)
     y = np.asarray(y)
     return y
 
 
-def proba2labels(proba: [list, np.ndarray], confident_threshold: float, classes:  [list, np.ndarray]) -> np.ndarray:
+def proba2labels(proba: [list, np.ndarray], confident_threshold: float, classes:  [list, np.ndarray]) -> List[List]:
     """
     Convert vectors of probabilities to labels using confident threshold
     (if probability to belong with the class is bigger than confident_threshold, sample belongs with the class;
@@ -61,16 +62,16 @@ def proba2labels(proba: [list, np.ndarray], confident_threshold: float, classes:
         classes: array of classes' names
 
     Returns:
-        array of lists of labels for each sample
+        list of lists of labels for each sample
     """
     y = []
     for sample in proba:
         to_add = np.where(sample > confident_threshold)[0]
         if len(to_add) > 0:
-            y.append(np.array(classes)[to_add])
+            y.append(np.array(classes)[to_add].tolist())
         else:
-            y.append(np.array([np.array(classes)[np.argmax(sample)]]))
-    y = np.asarray(y)
+            y.append(np.array([np.array(classes)[np.argmax(sample)]]).tolist())
+
     return y
 
 
@@ -87,45 +88,3 @@ def proba2onehot(proba: [list, np.ndarray], confident_threshold: float, classes:
         2d array with one-hot representation of given samples
     """
     return labels2onehot(proba2labels(proba, confident_threshold, classes), classes)
-
-
-def log_metrics(names: [list, np.ndarray], values: [list, np.ndarray],
-                updates: int = None, mode: str = 'train') -> None:
-    """
-    Print training and validation data in the following view:
-        `mode -->	updates: 0   	names[0]: 0.0	names[1]: 0.0	names[2]: 0.0`
-
-    Args:
-        names: names of considered metrics
-        values: values of considered metrics
-        updates: number of updates
-        mode: dataset field on which calculation is being doing (i.e "train")
-
-    Returns:
-        None
-    """
-    log.info("\r{} -->\t".format(mode))
-    if updates is not None:
-        log.info("updates: {}\t".format(updates))
-
-    for id in range(len(names)):
-        log.info("{}: {}\t".format(names[id], values[id]))
-    return
-
-
-def md5_hashsum(file_names: List[str]) -> str:
-    """
-    Calculate md5 hash sum of files listed
-
-    Args:
-        file_names: list of file names
-
-    Returns:
-        hashsum string
-    """
-    hash_md5 = hashlib.md5()
-    for file_name in file_names:
-        with open(file_name, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-    return hash_md5.hexdigest()
