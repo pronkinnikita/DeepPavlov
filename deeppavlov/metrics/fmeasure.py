@@ -173,8 +173,7 @@ def precision_recall_f1(y_true, y_pred, print_results=True, short_report=False, 
 
         # Then we find all correctly classified intervals
         # True positive results
-        tp = len(set(pred_chunk).intersection(set(true_chunk)))
-        
+        tp = len(set(pred_chunk).intersection(set(true_chunk)))    
         total_correct += tp
         # And then just calculate errors of the first and second kind
         # False negative
