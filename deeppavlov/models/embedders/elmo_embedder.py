@@ -295,7 +295,7 @@ class ELMoEmbedder(Component, metaclass=TfModelMeta):
         else:
             elmo_output_values = self._mini_batch_fit(batch, *args, **kwargs)
 
-        return elmo_output_values
+        return zero_pad(elmo_output_values)
 
     def __iter__(self) -> Iterator:
         """

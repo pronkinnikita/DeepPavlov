@@ -28,6 +28,7 @@
   "ecommerce_skill_bleu": "deeppavlov.skills.ecommerce_skill.bleu_retrieve:EcommerceSkillBleu",
   "ecommerce_skill_tfidf": "deeppavlov.skills.ecommerce_skill.tfidf_retrieve:EcommerceSkillTfidf",
   "elmo_embedder": "deeppavlov.models.embedders.elmo_embedder:ELMoEmbedder",
+  "elmo_embedder_bilm_tf": "deeppavlov.models.embedders.elmo_embedder_bim_tf:ELMoEmbedderBilmTf",
   "elmo_file_paths_iterator": "deeppavlov.dataset_iterators.elmo_file_paths_iterator:ELMoFilePathsIterator",
   "elmo_model": "deeppavlov.models.elmo.elmo:ELMo",
   "emb_mat_assembler": "deeppavlov.models.preprocessors.assemble_embeddings_matrix:EmbeddingsMatrixAssembler",
